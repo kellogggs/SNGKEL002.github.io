@@ -1,0 +1,472 @@
+---
+title: "a1"
+author: "Kelly-Robyn Singh"
+date: "2023-10-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = FALSE, message = FALSE)
+```
+
+```{r Loading Libraries, echo=FALSE, message=FALSE, warning=FALSE, eval=TRUE}
+
+
+library(glmnet)
+library(reticulate)
+library(tensorflow)
+library(keras)
+library(tidyverse)
+library(stringr)
+library(lubridate)
+library(tidytext)
+library(rpart) 
+library(dplyr)
+library(tidytext)
+library(tm)
+library(rpart.plot)
+library(knitr)
+library(kableExtra)
+
+setwd("C:/Users/User/Desktop/MSc_Data_Science/DS4I/SNGKEL002.github.io")
+
+load(file = "C:/Users/User/Desktop/MSc_Data_Science/DS4I/SNGKEL002.github.io/A1Final.RData")
+```
+
+```{r Defining Stop Words}
+# removed stop words 
+replace_reg <- "(http.*?(\\s|.$))|(www.*?(\\s|.$))|&amp;|&lt;|&gt;"
+#rnum <- "\\d+"
+unnest_reg <- "[^\\w_#@']"
+```
+
+```{r Reading in Data}
+set.seed(11)
+# set as tibble
+sona <- as_tibble(sona)
+sona <- sona %>% mutate(speech = str_replace(speech, "\\d{1,2} [A-Za-z]+ \\d{4}", "")) # Remove dates at the start of the speech
+# clean dates 
+sona1 <- sona %>% mutate(speech = str_replace(speech, pattern = "^Thursday, ", replacement = ""))%>%
+  mutate(filename = sub("\\.txt$", " ", filename)) 
+
+# remove dates on 2 remaining Ramaphosa speeche# rm white space
+
+
+```
+```{r, eval=TRUE, echo=FALSE}
+ggplot(sona1, aes(x = year)) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Speech Count by Year",
+       x = "Year",
+       y = "Number of Speeches") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(fill = "Legend Title")
+
+```
+
+Figure 1: Barplot Showing the Number of Speeches Given Per Year.
+```{r, eval=TRUE, echo=FALSE}
+ggplot(sona1, aes(x = reorder(president_13, -table(president_13)[president_13]), fill = president_13)) +
+  geom_bar() +
+  labs(title = "Number of Speeches per President",
+       x = "President",
+       y = "Number of Speeches") +
+  scale_fill_brewer(palette = "Set3") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(fill = "Legend Title")
+
+```
+Figure 2: Barplot Showing the Number of Speeches Given By Each President.
+
+```{r, eval=TRUE, echo=FALSE}
+
+# Create a plot of speech length against filename
+ggplot(sona, aes(x = filename, y = nchar(speech))) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(
+    title = "Speech Length vs. Filename",
+    x = "Filename",
+    y = "Speech Length"
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+Figure 3: Barplot Showing the Speech Length of Each Speech.
+
+```{r}
+sona <- sona1 %>% mutate(speech = str_trim(speech, side = "left")) %>%
+  mutate(filename = sub("\\.txt$", "", filename))  %>%
+  filter(!(president_13 %in% c("Motlanthe", "deKlerk")))
+```
+
+
+```{r Tokenization}
+sona_tokens <- unnest_tokens(sona, sentence, speech, token = 'sentences') 
+sona_tokens <- sona_tokens %>% mutate(sentence = str_replace_all(sentence, "[[:punct:]]", "")) %>%
+                   mutate(ID = row_number()) %>%
+                   mutate(president_13 = as.factor(president_13))
+
+word_bag <- sona_tokens %>% 
+            unnest_tokens(input = sentence, output = word, token = 'words') %>%
+            group_by(ID, president_13, word) %>% 
+            summarise("count" = n()) %>% filter(!word %in% stop_words$word) %>%
+            top_n(200)
+
+```
+
+```{r Bag of Words}
+sona_tdf <- sona_tokens %>%
+  unnest_tokens(input = sentence, output = word, token = 'words') %>%
+  inner_join(word_bag) %>%
+  group_by(ID, president_13, word) %>%
+  count() %>%  
+  group_by(president_13) %>%
+  mutate(total = sum(n)) %>%
+  ungroup()
+
+# bag of words
+bag_of_words <- sona_tdf %>% 
+  select(ID, president_13, word, n) %>% 
+  pivot_wider(names_from = word, values_from = n, values_fill = 0) %>%
+  mutate(president_13 = as.factor(president_13))
+class(bag_of_words)
+
+levels(bag_of_words$president_13)
+```
+
+```{r}
+# balance dataset 
+library(caret)
+#bag_of_words <- caret::downSample(x = bag_of_words[ , -ncol(bag_of_words)],
+ #                        y = bag_of_words$president_13, )
+
+# confirm data is balanced 
+#table(bag_of_words$president_13)
+
+# train ids
+set.seed(11)
+train_ids <- bag_of_words %>%
+  group_by(president_13) %>%
+  slice_sample(prop = 0.7) %>%
+  ungroup() %>%
+  select(ID)
+
+train_bow <- bag_of_words %>%
+  right_join(train_ids, by = "ID") %>%
+  select(-ID)
+
+test_bow <- bag_of_words %>%
+  anti_join(train_ids, by = "ID") %>%
+  select(-ID)
+
+train_bow_x <- train_bow %>% select(-president_13)
+train_bow_y <- train_bow$president_13
+
+# test bow
+test_bow_x <- test_bow %>% select(-president_13)
+test_bow_y <- test_bow$president_13
+
+numerical_target_btr <- factor(train_bow_y)
+train_bow_y <- as.numeric(numerical_target_btr)-1
+train_bow_y <- to_categorical(train_bow_y, dtype = "float32")
+
+
+numerical_target_bte <- factor(test_bow_y)
+test_bow_y <- as.numeric(numerical_target_bte)-1
+test_bow_y <- to_categorical(test_bow_y, dtype = "float32")
+```
+
+```{r}
+# feed forward neural network 
+model_ff_bow <- keras_model_sequential() %>%
+layer_dense(units = 32, activation = "relu", input_shape = ncol(train_bow_x)) %>%
+layer_dense(units = 32, activation = "relu", kernel_regularizer = regularizer_l2(0.01)) %>%
+layer_dense(units = 4, activation = "softmax")
+summary(model_ff_bow)
+# compile model
+model_ff_bow %>% compile(
+loss = "categorical_crossentropy",
+optimizer = optimizer_adam(learning_rate = 0.001),
+metrics = c("accuracy")
+)
+gc()
+
+train_bow_x <- as.matrix(train_bow_x) 
+model_ff_bow1 <- model_ff_bow %>% fit(train_bow_x, train_bow_y, epochs = 10, batch_size = 5, validation_split = 0.1)
+
+test_bow_x<- as.matrix(test_bow_x)
+results_bownn <- model_ff_bow %>% evaluate(test_bow_x, test_bow_y, batch_size = 15, verbose=2)
+```
+
+```{r, eval=TRUE, echo=FALSE}
+plot(model_ff_bow1)
+```
+Figure 4: Plot Showing the Accuracy and Loss of The Feed Forward Neural Network Model Using Bag of Words Features .
+
+```{r}
+#tfidf 
+###tf-idf
+ndocs <- length(unique(sona_tdf$ID))
+  
+idf <- sona_tdf %>%
+  group_by(word) %>%
+  summarise(docs_with_word = n()) %>%
+  ungroup() %>%
+  mutate(idf = log(ndocs/docs_with_word)) %>% arrange(desc(idf))
+
+sona_tdf <- sona_tdf %>%
+ left_join(idf, by = "word") %>%
+mutate(tf = n/total, tf_idf = tf*idf)
+
+sona_tdf <- sona_tdf %>%
+  select(-idf, -tf, -tf_idf) %>%
+  bind_tf_idf(word, ID, n)
+
+tfidf <- sona_tdf %>%
+  select(ID, word, president_13, tf_idf) %>%
+  pivot_wider(names_from = word, values_from = tf_idf, values_fill = 0) %>%
+  left_join(sona_tokens %>% select(ID, president_13))
+
+# split data into train and test
+train_ids_tf <- tfidf %>%
+  group_by(president_13) %>%
+  slice_sample(prop = 0.7) %>%
+  ungroup() %>%
+  select(ID)
+
+# tfidf train
+train_tfidf <- tfidf %>%
+  right_join(train_ids_tf, by = "ID") %>%
+  select(-ID)
+
+# bag of words test
+test_tfidf <- tfidf %>%
+  anti_join(train_ids_tf, by = "ID") %>%
+  select(-ID)
+
+test_tfidf_x <- test_tfidf %>% select(-president_13)
+test_tfidf_y <- test_tfidf$president_13
+
+train_tfidf_x <- train_tfidf %>% select(-president_13)
+train_tfidf_y <- train_tfidf$president_13
+
+# Model
+numerical_target_tr <- factor(train_tfidf_y)
+train_tfidf_y <- as.numeric(numerical_target_tr) - 1
+unique(train_tfidf_y)
+train_tfidf_y <- to_categorical(train_tfidf_y, dtype = "float32")
+unique(train_tfidf_y)
+
+numerical_target_test_tf <- factor(test_tfidf_y)
+test_tfidf_y <- as.numeric(numerical_target_test_tf) - 1
+unique(test_tfidf_y)
+test_tfidf_y <- to_categorical(test_tfidf_y, dtype = "float32")
+unique(test_tfidf_y)
+
+```
+```{r}
+
+# feed forward neural network
+model_ffnn_tfidf <- keras_model_sequential() %>%
+  layer_dense(units = 200, activation = "relu", input_shape = ncol(train_tfidf_x)) %>%
+  layer_dense(units = 150, activation = "relu") %>%
+  layer_dense(units = 100, activation = "relu", kernel_regularizer = regularizer_l2(0.01)) %>%
+  layer_dense(units = 50, activation = "tanh") %>%
+  layer_dense(units = 4, activation = "softmax")
+
+summary(model_ffnn_tfidf)
+
+# compile model
+model_ffnn_tfidf %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = "adam",
+  metrics = c("accuracy")
+)
+
+# fit model
+train_tfidf_x <- as.matrix(train_tfidf_x)
+
+nn_mod1_tfidf <- model_ffnn_tfidf %>% fit(train_tfidf_x, train_tfidf_y, epochs = 10, batch_size = 15, validation_split = 0.2)
+
+test_tfidf_x <- as.matrix(test_tfidf_x)
+
+results_tf_ffnn <- model_ffnn_tfidf %>% evaluate(test_tfidf_x, test_tfidf_y, batch_size = 15, verbose = 2)
+```
+```{r, eval=TRUE, echo=FALSE}
+plot(nn_mod1_tfidf)
+
+```
+Figure 5: Plot Showing the Accuracy and Loss of The Feed Forward Neural Network Model Using TF-IDF Features .
+
+
+```{r}
+max_features <- 2000
+tokenizer <- text_tokenizer(num_words = max_features)
+
+fit_text_tokenizer(tokenizer, sona_tokens$sentence)
+
+sequences <- tokenizer$texts_to_sequences(sona_tokens$sentence)
+
+train_rows <- which(sona_tokens$ID %in% train_ids_tf$ID)
+
+train <- list()
+test <- list()
+train$x <- sequences[train_rows] 
+test$x <-  sequences[-train_rows]
+
+y <- sona_tokens$president_13
+
+train_y <- to_categorical(as.numeric(factor(y[train_rows])) - 1)
+test_y <- to_categorical(as.numeric(factor(y[-train_rows])) - 1)
+unique(train_y)
+unique(test_y)
+```
+
+```{r}
+# best is 40 
+maxlen <- 40
+x_train <- train$x %>% pad_sequences(maxlen = maxlen)
+x_test <- test$x %>% pad_sequences(maxlen = maxlen)
+```
+
+```{r}
+# feed forward neural network
+model_mlp_tfidf <- keras_model_sequential() %>%
+  layer_embedding(max_features, output_dim = 50, input_length = maxlen) %>%
+  layer_flatten() %>%
+  layer_dense(units = 32, activation = 'relu') %>%
+  layer_dense(units = 32, activation = 'tanh') %>%
+  layer_dense(units = 16, activation = 'relu', kernel_regularizer = regularizer_l2(0.2)) %>%
+  layer_dense(units = 25, activation = 'relu') %>%
+  layer_dense(units = 4, activation = 'softmax')
+
+summary(model_mlp_tfidf)
+
+# Compile the model
+model_mlp_tfidf %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = optimizer_adam(learning_rate = 0.001),
+  metrics = c('accuracy')
+)
+
+# Train the model
+x_train <- as.matrix(x_train)
+train_mlp <- model_mlp_tfidf %>% fit(
+  x_train, train_y,
+  epochs = 10, batch_size = 10,
+  validation_split = 0.1
+)
+
+# Evaluate the model
+x_test <- as.matrix(x_test)
+results_mlp_tf <- model_mlp_tfidf %>% evaluate(x_test, test_y, batch_size = 15, verbose = 2)
+
+```
+
+```{r , eval=TRUE, echo=FALSE}
+plot(train_mlp)
+```
+Figure 7: Plot Showing the Accuracy and Loss of The Feed Forward Neural Network Model Using Word Embeddings.
+
+```{r}
+model_cnn_tf <- keras_model_sequential() %>%
+  layer_embedding(max_features, output_dim = embedding_dims, input_length = maxlen) %>%
+  layer_conv_1d(filters = 64, kernel_size = 8, activation = "relu") %>%
+  layer_dropout(0.5) %>%
+  layer_conv_1d(filters = 100, kernel_size = 20, activation = "relu") %>%
+  layer_max_pooling_1d(pool_size = 2) %>%
+  layer_flatten() %>%
+  layer_dense(32, activation = "relu", kernel_regularizer = regularizer_l2(0.2)) %>%
+  layer_dense(4, activation = "softmax")
+
+summary(model_cnn_tf)
+
+# Compile the model
+model_cnn_tf %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_adam(learning_rate = 0.001),
+  metrics = c("accuracy")
+)
+
+# Fit the model
+train_cnn_tf <- model_cnn_tf %>% fit(
+  x_train, train_y,
+  epochs = 10, batch_size = 15,
+  validation_split = 0.1
+)
+
+# Evaluate the model
+results_cnn_tf <- model_cnn_tf %>% evaluate(x_test, test_y, batch_size = 15, verbose = 2)
+
+```
+```{r, eval=TRUE, echo=FALSE}
+plot(train_cnn_tf)
+```
+Figure 8: Plot Showing the Accuracy and Loss of The Convolutional Neural Network Model Using Word Embeddings.
+
+```{r, eval=TRUE}
+model_rnn_tf <- keras_model_sequential() %>%
+  layer_embedding(input_dim = max_features, output_dim = embedding_dims, input_length = maxlen) %>%
+  layer_lstm(units = 128, activation = 'tanh', dropout = 0.2, return_sequences = TRUE) %>%
+  layer_lstm(units = 64, activation = 'tanh', dropout = 0.2) %>%
+  layer_dense(units = 64, activation = 'relu') %>%
+  layer_dense(units = 32, activation = 'relu') %>%
+  layer_dense(units = 4, activation = 'softmax')
+
+# Compile the model
+model_rnn_tf %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_adam(learning_rate = 0.001),
+  metrics = c("accuracy")
+)
+
+# Fit the model
+train_rnn_tf <- model_rnn_tf %>% fit(
+  x_train, train_y,
+  epochs = 10, batch_size = 25,
+  validation_split = 0.1
+)
+
+# Evaluate the model
+results_rnn_tf <- model_rnn_tf %>% evaluate(x_test, test_y, batch_size = 25, verbose = 2)
+```
+
+```{r}
+# Plot the training history
+plot(train_rnn_tf)
+```
+
+Figure 9: Plot Showing the Accuracy and Loss of The Recurrent Neural Network Model Using Word Embeddings.
+
+
+```{r}
+# Load the knitr package if not already loaded
+
+library(knitr)
+
+# Create a data frame with the metrics
+metrics_df <- data.frame(
+  "Neural Network Type" = c("Multilayer Perceptron", "Multilayer Perceptron", "Multilayer Perceptron", "Convolutional Neural Networks", "Recurrent Neural Network"),
+  "Data Type" = c("Bag of Words", "TFIDF", "Word Embeddings", "Word Embeddings", "Word Embeddings"),
+  "Loss" = c(2.01, 2.78, 2.74, 1.85, 1.40),
+  "Accuracy" = c(0.55, 0.51, 0.47, 0.50, 0.54)
+)
+
+# Create a kable table
+kable_table <- kable(metrics_df, format = "html", caption = "Table 1: Neural Network Metrics")
+```
+
+```{r, eval=TRUE, echo=FALSE}
+# Print the kable table
+kable_table
+```
+```{r}
+save.image(file = "A1Final.RData")
+```
+Table 1: Table Showing Neural Network Metrics
+
+
+```{r, eval=TRUE, echo=FALSE}
+hist(unlist(lapply(sequences, length)), main = "Sequence length after tokenization")
+```
+Figure 6: Histogram Showing the Sequence Length After Tokenization

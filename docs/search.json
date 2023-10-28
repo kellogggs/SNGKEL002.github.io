@@ -1,0 +1,23 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "SNGKEL002.github.io",
+    "section": "",
+    "text": "This is a Quarto website.\nTo learn more about Quarto websites visit https://quarto.org/docs/websites.\n\n1 + 1\n\n[1] 2"
+  },
+  {
+    "objectID": "SNGKEL002_A1.html",
+    "href": "SNGKEL002_A1.html",
+    "title": "a1",
+    "section": "",
+    "text": "Figure 1: Barplot Showing the Number of Speeches Given Per Year.\n\n\n\n\n\nFigure 2: Barplot Showing the Number of Speeches Given By Each President.\n\n\n\n\n\nFigure 3: Barplot Showing the Speech Length of Each Speech.\n\n\n\n\n\nFigure 4: Plot Showing the Accuracy and Loss of The Feed Forward Neural Network Model Using Bag of Words Features .\n\n\n\n\n\nFigure 5: Plot Showing the Accuracy and Loss of The Feed Forward Neural Network Model Using TF-IDF Features .\n\n\n\n\n\nFigure 7: Plot Showing the Accuracy and Loss of The Feed Forward Neural Network Model Using Word Embeddings.\n\n\n\n\n\nFigure 8: Plot Showing the Accuracy and Loss of The Convolutional Neural Network Model Using Word Embeddings.\n\n\nEpoch 1/10\n226/226 - 27s - loss: 1.2546 - accuracy: 0.4361 - val_loss: 1.5732 - val_accuracy: 0.0000e+00 - 27s/epoch - 119ms/step\nEpoch 2/10\n226/226 - 15s - loss: 1.0733 - accuracy: 0.5197 - val_loss: 1.6015 - val_accuracy: 0.0000e+00 - 15s/epoch - 68ms/step\nEpoch 3/10\n226/226 - 15s - loss: 0.9592 - accuracy: 0.5795 - val_loss: 1.6730 - val_accuracy: 0.2452 - 15s/epoch - 66ms/step\nEpoch 4/10\n226/226 - 15s - loss: 0.8459 - accuracy: 0.6457 - val_loss: 1.3682 - val_accuracy: 0.3790 - 15s/epoch - 68ms/step\nEpoch 5/10\n226/226 - 14s - loss: 0.7807 - accuracy: 0.6864 - val_loss: 1.5090 - val_accuracy: 0.3599 - 14s/epoch - 63ms/step\nEpoch 6/10\n226/226 - 14s - loss: 0.7171 - accuracy: 0.7112 - val_loss: 1.3820 - val_accuracy: 0.4283 - 14s/epoch - 63ms/step\nEpoch 7/10\n226/226 - 14s - loss: 0.6764 - accuracy: 0.7316 - val_loss: 1.5129 - val_accuracy: 0.4220 - 14s/epoch - 63ms/step\nEpoch 8/10\n226/226 - 14s - loss: 0.6395 - accuracy: 0.7505 - val_loss: 1.4325 - val_accuracy: 0.4586 - 14s/epoch - 64ms/step\nEpoch 9/10\n226/226 - 15s - loss: 0.5897 - accuracy: 0.7762 - val_loss: 1.4902 - val_accuracy: 0.4363 - 15s/epoch - 66ms/step\nEpoch 10/10\n226/226 - 16s - loss: 0.5519 - accuracy: 0.7836 - val_loss: 1.7050 - val_accuracy: 0.4618 - 16s/epoch - 71ms/step\n\n\n110/110 - 3s - loss: 1.2865 - accuracy: 0.5513 - 3s/epoch - 23ms/step\n\n\nFigure 9: Plot Showing the Accuracy and Loss of The Recurrent Neural Network Model Using Word Embeddings.\n\n\n\nTable 1: Neural Network Metrics\n\n\nNeural.Network.Type\nData.Type\nLoss\nAccuracy\n\n\n\n\nMultilayer Perceptron\nBag of Words\n2.01\n0.55\n\n\nMultilayer Perceptron\nTFIDF\n2.78\n0.51\n\n\nMultilayer Perceptron\nWord Embeddings\n2.74\n0.47\n\n\nConvolutional Neural Networks\nWord Embeddings\n1.85\n0.50\n\n\nRecurrent Neural Network\nWord Embeddings\n1.40\n0.54\n\n\n\n\n\n\n\nTable 1: Table Showing Neural Network Metrics\n\n\n\n\n\nFigure 6: Histogram Showing the Sequence Length After Tokenization"
+  },
+  {
+    "objectID": "about.html",
+    "href": "about.html",
+    "title": "About",
+    "section": "",
+    "text": "About this site\n\n1 + 1\n\n[1] 2"
+  }
+]
