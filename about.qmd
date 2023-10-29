@@ -1,9 +1,11 @@
 ---
-title: "About"
+title: "Appendix A"
 ---
 
-About this site
 
-```{r}
-1 + 1
+```{r, eval=TRUE, echo=FALSE}
+load(file = "C:/Users/User/Documents/A1Final.RData")
+
+hist(unlist(lapply(sequences, length)), main = "Sequence length after tokenization")
 ```
+Figure 6: Histogram Showing the Sequence Length After Tokenization
